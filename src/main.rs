@@ -82,7 +82,7 @@ fn main() {
     println!("  By FRANORDE   ");
     println!("Write a command (or 'exit' to quit):\n");
 
-    let mut current_shell = Shell::PowerShell;
+    let mut current_shell = Shell::CozyT;
 
     loop {
         print!("CozyMDT [{}]> ", current_shell.name());
