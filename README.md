@@ -1,3 +1,3 @@
 # CozyMTD
 
-# ⚠️ Hey there! This project is still WIP! ⚠️
+# ⚠️ Hold up there! This project is still WIP! ⚠️
