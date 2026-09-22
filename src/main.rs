@@ -1,3 +1,5 @@
+// Hi!
+// Welcome to my code.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use eframe::egui;
@@ -11,6 +13,25 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+// ============================================================
+// For modifiying the layout of the title bar. Made cuz im lazy :}
+// ============================================================
+mod layout {
+    pub const TITLE_BAR_HEIGHT: f32 = 32.0;
+    pub const TITLE_BAR_TEXT: &str = "CozyMDT";
+    pub const TITLE_BAR_LEFT_PADDING: f32 = 10.0;
+    pub const TITLE_BAR_BUTTON_WIDTH: f32 = 36.0;
+    pub const TITLE_BAR_BUTTON_HEIGHT: f32 = 32.0;
+    pub const TITLE_BAR_BUTTON_FONT_SIZE: f32 = 16.0;
+    pub const CONTENT_MARGIN: f32 = 10.0;
+    pub const DEFAULT_CORNER_RADIUS: f32 = 12.0;
+
+    // Title bar button symbols: you need to use a font that has these symbols.
+    pub const CLOSE_SYMBOL: &str = "×";
+    pub const MAXIMIZE_SYMBOL: &str = "▢";
+    pub const MINIMIZE_SYMBOL: &str = "–";
+}
 
 // --- Color palettes, chosen at startup based on settings.jsonc ---
 mod theme {
@@ -93,12 +114,33 @@ mod theme {
     }
 }
 
+// Which title bar to show: CozyMDT's own drawn bar, Windows' normal one,
+// or none at all (fully borderless — close only via the "exit" command).
+#[derive(Clone, Copy, PartialEq)]
+enum TitleBarMode {
+    Custom,
+    Windows,
+    None,
+}
+
+impl TitleBarMode {
+    fn from_name(name: &str) -> Self {
+        match name.to_lowercase().as_str() {
+            "windows" => Self::Windows,
+            "none" => Self::None,
+            _ => Self::Custom,
+        }
+    }
+}
+
 // --- settings.jsonc structure ---
 #[derive(Deserialize)]
 #[serde(default)]
 struct SettingsFile {
     theme: String,
     font: String,
+    title_bar: String,
+    rounded_corners: bool,
 }
 
 impl Default for SettingsFile {
@@ -106,6 +148,8 @@ impl Default for SettingsFile {
         Self {
             theme: "frappe".to_string(),
             font: String::new(),
+            title_bar: "custom".to_string(),
+            rounded_corners: true,
         }
     }
 }
@@ -125,12 +169,22 @@ fn settings_path() -> PathBuf {
 
 const DEFAULT_SETTINGS: &str = r#"{
     // This is the settings file for CozyMDT settings
-    // Available themes: "latte", "frappe", "macchiato, "mocha"
+    // Available themes: "latte", "frappe", "macchiato", "mocha"
     "theme": "frappe",
 
     // Path to a custom .ttf font file (use the full path, e.g. "C:\\Fonts\\myfont.ttf").
     // Leave empty to use the default bundled font (JetBrainsMono Nerd Font)
-    "font": ""
+    "font": "",
+
+    // Available title bars:
+    // "custom"  - CozyMDT's own drawn bar (drag, minimize, maximize, close)
+    // "windows" - the normal Windows title bar
+    // "none"    - no title bar at all (close only by typing "exit")
+    "title_bar": "custom",
+
+    // Rounded corners on the window. Only applies to "custom" and "none"
+    // title bars — "windows" already handles its own corners natively.
+    "rounded_corners": true
 }
 "#;
 
@@ -253,6 +307,8 @@ fn find_bash() -> String {
     let candidates = [
         r"C:\Program Files\Git\bin\bash.exe",
         r"C:\Program Files (x86)\Git\bin\bash.exe",
+        r"C:\Windows\System32\bash.exe",
+        r"C:\Windows\SysWOW64\bash.exe",
     ];
 
     for candidate in candidates {
@@ -261,6 +317,7 @@ fn find_bash() -> String {
         }
     }
 
+    // Fallback to default bash if not found
     "bash".to_string()
 }
 
@@ -292,10 +349,17 @@ struct CozyMdtApp {
     output_rx: Option<Receiver<String>>,
     is_running: bool,
     palette: theme::Palette,
+    title_bar: TitleBarMode,
+    corner_radius: f32,
 }
 
 impl CozyMdtApp {
-    fn new(palette: theme::Palette, startup_warnings: Vec<String>) -> Self {
+    fn new(
+        palette: theme::Palette,
+        startup_warnings: Vec<String>,
+        title_bar: TitleBarMode,
+        corner_radius: f32,
+    ) -> Self {
         let mut history = vec![
             HistoryLine::Banner("=== CozyMDT ===".to_string()),
             HistoryLine::Banner("  By FRANORDE   ".to_string()),
@@ -303,6 +367,12 @@ impl CozyMdtApp {
 
         for warning in startup_warnings {
             history.push(HistoryLine::Error(warning));
+        }
+
+        if title_bar == TitleBarMode::None {
+            history.push(HistoryLine::Info(
+                "Title bar is disabled — type 'exit' to close CozyMDT.".to_string(),
+            ));
         }
 
         Self {
@@ -315,6 +385,8 @@ impl CozyMdtApp {
             output_rx: None,
             is_running: false,
             palette,
+            title_bar,
+            corner_radius,
         }
     }
 
@@ -351,7 +423,7 @@ impl CozyMdtApp {
                 self.log("CozyT built-in commands:");
                 self.log("  help     - show this message");
                 self.log("  version  - show CozyMDT version");
-                self.log("  settings - open CozyMDT settings file (theme, font)");
+                self.log("  settings - open CozyMDT settings file (theme, font, title bar)");
                 self.log("  cd <dir> - change current directory");
                 true
             }
@@ -376,7 +448,7 @@ impl CozyMdtApp {
                 if let Err(e) = open::that(&path) {
                     self.log_error(format!("Could not open settings file: {}", e));
                 } else {
-                    self.log_info("Restart CozyMDT after saving to apply theme/font changes.");
+                    self.log_info("Restart CozyMDT after saving to apply changes.");
                 }
                 true
             }
@@ -506,6 +578,11 @@ impl CozyMdtApp {
     }
 }
 
+// ============================================================
+// DRAWING — one function per visual piece, so each is easy to
+// find and edit without wading through the rest of the app.
+// ============================================================
+
 fn draw_history_line(ui: &mut egui::Ui, line: &HistoryLine, palette: &theme::Palette) {
     match line {
         HistoryLine::Banner(text) => {
@@ -578,7 +655,170 @@ fn layout_command_input(
     ui.fonts(|f| f.layout_job(job))
 }
 
+// Draws a single title-bar button: no border/background by default,
+// a highlight on hover (solid red for close, a faint overlay for the
+// others), and a plain glyph guaranteed to exist in any font.
+fn title_bar_button(
+    ui: &mut egui::Ui,
+    symbol: &str,
+    color: egui::Color32,
+    is_close: bool,
+    palette: &theme::Palette,
+) -> egui::Response {
+    let size = egui::vec2(
+        layout::TITLE_BAR_BUTTON_WIDTH,
+        layout::TITLE_BAR_BUTTON_HEIGHT,
+    );
+    let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+    let hovered = response.hovered();
+
+    if hovered {
+        let bg = if is_close {
+            palette.red
+        } else {
+            egui::Color32::from_rgba_unmultiplied(
+                palette.text.r(),
+                palette.text.g(),
+                palette.text.b(),
+                30,
+            )
+        };
+        ui.painter().rect_filled(rect, 0.0, bg);
+    }
+
+    let text_color = if hovered && is_close {
+        egui::Color32::WHITE
+    } else {
+        color
+    };
+
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        symbol,
+        egui::FontId::monospace(layout::TITLE_BAR_BUTTON_FONT_SIZE),
+        text_color,
+    );
+
+    response
+}
+
+// The ENTIRE title bar lives in this one function: the title text,
+// drag-to-move, double-click-to-maximize, and the three buttons.
+// Everything about how the bar looks or behaves is edited here —
+// nowhere else in the file touches it.
+fn draw_title_bar(ui: &mut egui::Ui, ctx: &egui::Context, palette: &theme::Palette) {
+    let (bar_rect, bar_response) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width(), layout::TITLE_BAR_HEIGHT),
+        egui::Sense::click_and_drag(),
+    );
+
+    if bar_response.drag_started() {
+        ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
+    }
+    if bar_response.double_clicked() {
+        let maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
+    }
+
+    ui.scope_builder(egui::UiBuilder::new().max_rect(bar_rect), |ui| {
+        ui.horizontal(|ui| {
+            ui.add_space(layout::TITLE_BAR_LEFT_PADDING);
+            ui.colored_label(palette.lavender, layout::TITLE_BAR_TEXT);
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if title_bar_button(ui, layout::CLOSE_SYMBOL, palette.red, true, palette).clicked()
+                {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+                if title_bar_button(ui, layout::MAXIMIZE_SYMBOL, palette.text, false, palette)
+                    .clicked()
+                {
+                    let maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
+                }
+                if title_bar_button(ui, layout::MINIMIZE_SYMBOL, palette.text, false, palette)
+                    .clicked()
+                {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+                }
+            });
+        });
+    });
+}
+
+// The scrollable history + the live input line. Kept separate from the
+// title bar so each piece can be edited (or reused) independently.
+fn draw_terminal_body(app: &mut CozyMdtApp, ui: &mut egui::Ui) {
+    let palette = app.palette;
+
+    egui::ScrollArea::vertical()
+        .stick_to_bottom(true)
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            for line in &app.history {
+                draw_history_line(ui, line, &palette);
+            }
+
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.colored_label(palette.subtext, app.prompt());
+
+                let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                    layout_command_input(ui, text, wrap_width, &palette)
+                };
+
+                let text_edit = egui::TextEdit::singleline(&mut app.input)
+                    .frame(false)
+                    .desired_width(f32::INFINITY)
+                    .text_color(palette.text)
+                    .layouter(&mut layouter)
+                    .interactive(!app.is_running);
+
+                let response = ui.add(text_edit);
+
+                if app.focus_input && !app.is_running {
+                    response.request_focus();
+                    app.focus_input = false;
+                }
+
+                if !app.is_running
+                    && response.lost_focus()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                {
+                    let input = std::mem::take(&mut app.input);
+                    let trimmed = input.trim().to_string();
+
+                    if trimmed == "exit" {
+                        std::process::exit(0);
+                    }
+
+                    app.run_command(&trimmed);
+                    app.focus_input = true;
+                }
+            });
+        });
+}
+
 impl eframe::App for CozyMdtApp {
+    // Returning a fully transparent clear color is what lets the corners
+    // outside our rounded panel show the desktop instead of a solid block —
+    // required for rounded corners to work on a borderless window.
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        if self.corner_radius > 0.0 {
+            egui::Rgba::TRANSPARENT.to_array()
+        } else {
+            let c = self.palette.base;
+            egui::Rgba::from_rgba_unmultiplied(
+                c.r() as f32 / 255.0,
+                c.g() as f32 / 255.0,
+                c.b() as f32 / 255.0,
+                1.0,
+            )
+            .to_array()
+        }
+    }
+
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut new_lines = Vec::new();
         let mut disconnected = false;
@@ -600,73 +840,43 @@ impl eframe::App for CozyMdtApp {
         if disconnected {
             self.output_rx = None;
             self.is_running = false;
+            // Clear the running child reference when the command finishes
+            *self.running_child.lock().unwrap() = None;
         }
 
         if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) && self.is_running {
-            let pid = self.running_child.lock().unwrap().as_ref().map(|c| c.id());
-
-            if let Some(pid) = pid {
-                let _ = Command::new("taskkill")
-                    .args(["/PID", &pid.to_string(), "/T", "/F"])
-                    .creation_flags(CREATE_NO_WINDOW)
-                    .output();
+            if let Some(child) = self.running_child.lock().unwrap().as_mut() {
+                let _ = child.kill();
             }
 
-            self.log_error("^C");
+            self.log("User interruption: CTRL+C");
         }
 
         let palette = self.palette;
+        let title_bar_mode = self.title_bar;
+        let corner_radius = self.corner_radius;
 
+        // Everything (title bar + content) lives inside ONE panel with
+        // rounded corners on all four sides — see draw_title_bar() and
+        // draw_terminal_body() above for the actual UI code.
         egui::CentralPanel::default()
-            .frame(egui::Frame::default().fill(palette.base).inner_margin(10.0))
+            .frame(
+                egui::Frame::default()
+                    .fill(palette.base)
+                    .rounding(egui::Rounding::same(corner_radius))
+                    .inner_margin(0.0),
+            )
             .show(ctx, |ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Monospace);
 
-                egui::ScrollArea::vertical()
-                    .stick_to_bottom(true)
-                    .auto_shrink([false, false])
+                if title_bar_mode == TitleBarMode::Custom {
+                    draw_title_bar(ui, ctx, &palette);
+                }
+
+                egui::Frame::default()
+                    .inner_margin(layout::CONTENT_MARGIN)
                     .show(ui, |ui| {
-                        for line in &self.history {
-                            draw_history_line(ui, line, &palette);
-                        }
-
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 0.0;
-                            ui.colored_label(palette.subtext, self.prompt());
-
-                            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                                layout_command_input(ui, text, wrap_width, &palette)
-                            };
-
-                            let text_edit = egui::TextEdit::singleline(&mut self.input)
-                                .frame(false)
-                                .desired_width(f32::INFINITY)
-                                .text_color(palette.text)
-                                .layouter(&mut layouter)
-                                .interactive(!self.is_running);
-
-                            let response = ui.add(text_edit);
-
-                            if self.focus_input && !self.is_running {
-                                response.request_focus();
-                                self.focus_input = false;
-                            }
-
-                            if !self.is_running
-                                && response.lost_focus()
-                                && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                            {
-                                let input = std::mem::take(&mut self.input);
-                                let trimmed = input.trim().to_string();
-
-                                if trimmed == "exit" {
-                                    std::process::exit(0);
-                                }
-
-                                self.run_command(&trimmed);
-                                self.focus_input = true;
-                            }
-                        });
+                        draw_terminal_body(self, ui);
                     });
             });
 
@@ -677,17 +887,42 @@ impl eframe::App for CozyMdtApp {
 fn main() -> eframe::Result<()> {
     let (settings, mut warnings) = load_or_create_settings();
     let palette = theme::Palette::from_name(&settings.theme);
+    let title_bar = TitleBarMode::from_name(&settings.title_bar);
 
     let (custom_font, font_warnings) = load_custom_font(&settings);
     warnings.extend(font_warnings);
 
-    let options = eframe::NativeOptions::default();
+    // Windows' own decorations are only enabled for TitleBarMode::Windows.
+    let decorations = title_bar == TitleBarMode::Windows;
+
+    // Rounded corners only make sense (and only work) on a borderless
+    // window — "windows" mode already has its own native corner handling.
+    let rounding_enabled = settings.rounded_corners && title_bar != TitleBarMode::Windows;
+    let corner_radius = if rounding_enabled {
+        layout::DEFAULT_CORNER_RADIUS
+    } else {
+        0.0
+    };
+
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_decorations(decorations)
+            .with_transparent(rounding_enabled)
+            .with_inner_size([900.0, 600.0]),
+        ..Default::default()
+    };
+
     eframe::run_native(
         "CozyMDT",
         options,
         Box::new(move |cc| {
             setup_fonts(&cc.egui_ctx, custom_font);
-            Ok(Box::new(CozyMdtApp::new(palette, warnings)))
+            Ok(Box::new(CozyMdtApp::new(
+                palette,
+                warnings,
+                title_bar,
+                corner_radius,
+            )))
         }),
     )
 }
