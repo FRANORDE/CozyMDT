@@ -300,9 +300,8 @@ fn strip_unc_prefix(path: PathBuf) -> PathBuf {
     }
 }
 
-// Git for Windows doesn't add bash.exe to the system PATH by default —
-// only Git Bash's own sessions have it. So we check the common install
-// locations directly instead of relying on PATH.
+// Attempts to find a bash executable on Windows. Checks common installation paths for Git Bash and WSL, and falls back to "bash" if none are found.
+// This allows users to run bash commands in CozyMDT without needing to specify the full path.
 fn find_bash() -> String {
     let candidates = [
         r"C:\Program Files\Git\bin\bash.exe",
@@ -319,6 +318,17 @@ fn find_bash() -> String {
 
     // Fallback to default bash if not found
     "bash".to_string()
+}
+
+// Kill all processes in the tree of the given PID.
+// This is used to terminate child processes when the user presses CTRL+C.
+fn kill_process_tree(pid: u32) {
+    let _ = Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
 }
 
 // Decides the color for a command's first word — green for "exit",
@@ -589,7 +599,11 @@ fn draw_history_line(ui: &mut egui::Ui, line: &HistoryLine, palette: &theme::Pal
             ui.colored_label(palette.lavender, text);
         }
         HistoryLine::Output(text) => {
-            ui.colored_label(palette.text, text);
+            if text.contains("User interruption: CTRL+C") {
+                ui.colored_label(palette.red, text);
+            } else {
+                ui.colored_label(palette.text, text);
+            }
         }
         HistoryLine::Error(text) => {
             ui.colored_label(palette.red, text);
@@ -843,13 +857,28 @@ impl eframe::App for CozyMdtApp {
             // Clear the running child reference when the command finishes
             *self.running_child.lock().unwrap() = None;
         }
+        // This has tortured me for hours, but I finally figured out why CTRL+C wasn't working in CozyMDT:
+        // CTRL+C in egui/winit never arrives as "key C pressed with ctrl
+        // held" — the OS/windowing layer translates it into a Copy event
+        // (the same one used for clipboard copy) before it reaches egui.
+        // So we intercept Event::Copy instead of Key::C + modifiers.ctrl.
+        let ctrl_c_pressed = ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Copy)));
 
-        if ctx.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::C)) && self.is_running {
-            if let Some(child) = self.running_child.lock().unwrap().as_mut() {
-                let _ = child.kill();
+        if ctrl_c_pressed {
+            if self.is_running {
+                if let Some(child) = self.running_child.lock().unwrap().as_ref() {
+                    kill_process_tree(child.id());
+                }
+
+                self.log("User interruption: CTRL+C");
+            } else if !self.input.is_empty() {
+                // Nothing running: CTRL+C just clears whatever you were
+                // typing, the same way a real terminal closes out a line
+                // with ^C when pressed on an empty prompt.
+                let cancelled = std::mem::take(&mut self.input);
+                self.log_command(&format!("{}^C", cancelled));
+                self.focus_input = true;
             }
-
-            self.log("User interruption: CTRL+C");
         }
 
         let palette = self.palette;
