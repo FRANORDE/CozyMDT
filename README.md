@@ -1,3 +1,3 @@
 # CozyMDT
 
-# ⚠️ Hold up there! This project is still WIP! ⚠️
+# https://img.shields.io/gitea/last-commit/FRANORDE/CozyMDT
