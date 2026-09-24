@@ -10,3 +10,19 @@
   <img src="https://img.shields.io/github/languages/top/FRANORDE/CozyMDT" alt="GitHub top language">
   <img src="https://img.shields.io/github/last-commit/FRANORDE/CozyMDT" alt="GitHub last commit">
 </p>
+
+## Installation
+
+### Step 1:
+
+Download the latest release as a .zip file from the [releases page](https://github.com/FRANORDE/CozyMDT/releases).
+
+### Step 2:
+
+Extract the .zip file to a folder of your choice.
+
+### Step 3:
+
+Use the easy-setup file in the setup folder (init.bat)
+
+### Finished!
