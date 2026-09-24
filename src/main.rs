@@ -435,6 +435,7 @@ impl CozyMdtApp {
                 self.log("  version  - show CozyMDT version");
                 self.log("  settings - open CozyMDT settings file (theme, font, title bar)");
                 self.log("  cd <dir> - change current directory");
+                self.log("  cozyu    - uninstall CozyMDT");
                 true
             }
             "version" => {
@@ -459,6 +460,29 @@ impl CozyMdtApp {
                     self.log_error(format!("Could not open settings file: {}", e));
                 } else {
                     self.log_info("Restart CozyMDT after saving to apply changes.");
+                }
+                true
+            }
+            "cozyu" => {
+                let home_dir = dirs::home_dir().unwrap();
+                let exe_path = home_dir.join("bin").join("CozyMDT.exe");
+                if exe_path.exists() {
+                    self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
+                    let mut input = String::new();
+                    use std::io::{self, Write, stdin, stdout};
+                    stdout().flush().unwrap();
+                    stdin().read_line(&mut input).unwrap();
+                    if input.trim().to_lowercase() == "y" {
+                        if let Err(e) = std::fs::remove_file(&exe_path) {
+                            self.log_error(format!("Could not uninstall CozyMDT: {}", e));
+                        } else {
+                            self.log_info("CozyMDT has been uninstalled.");
+                        }
+                    } else {
+                        self.log_info("Uninstall cancelled.");
+                    }
+                } else {
+                    self.log_info("CozyMDT is not installed.");
                 }
                 true
             }
