@@ -31,7 +31,7 @@ This will create the executable file, copy it, create the `bin` directory inside
 # Usage
 
 You can use the Windows Run (⊞+R) to open CozyMDT or use the executable in  `~\bin`.
-For creating shortcuts see [Creating shortcuts]
+For creating shortcuts see [Creating shortcuts] (https://github.com/FRANORDE/CozyMDT/tree/main#creating-shortcuts)
 
 # Optional tweaks
 
