@@ -1,6 +1,14 @@
 @echo off
 setlocal
 
+where rustc >nul 2>&1
+if errorlevel 1 (
+    echo Rust is not installed.
+    echo Install it from https://rustup.rs and run this script again.
+    timeout /t 3 /nobreak >nul
+    exit /b 1
+)
+
 echo Creating executable...
 cargo build --release
 if errorlevel 1 (
