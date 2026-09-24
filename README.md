@@ -25,4 +25,4 @@ Extract the .zip file to a folder of your choice.
 
 Use the easy-setup file in the setup folder (init.bat)
 
-## Finished!
+### Finished!
