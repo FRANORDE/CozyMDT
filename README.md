@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="pjassets/CozyMDT.png" width="128" alt="CozyMDT">
+  <img src="pjassets/CozyMDT.png" width="200" alt="CozyMDT Logo">
 </p>
 
 <h1 align="center">CozyMDT</h1>
