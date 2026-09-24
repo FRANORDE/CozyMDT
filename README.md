@@ -23,6 +23,8 @@ Extract the .zip file to a folder of your choice.
 
 ## Step 3:
 
-Use the easy-setup file in the setup folder (init.bat)
+Use the easy-setup file 'init.bat' in the setup folder
 
 ### Finished!
+
+# Usage
