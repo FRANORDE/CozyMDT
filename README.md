@@ -23,8 +23,21 @@ Extract the .zip file to a folder of your choice.
 
 ## Step 3:
 
-Use the easy-setup file `init.bat` in the setup folder
+Use the easy-setup file `init.bat` in the setup folder.
+This will create the executable file, copy it, create the `bin` directory inside of `~`, and add it to the PATH so it can be called from anywhere
 
 ### Finished!
 
 # Usage
+
+You can use the Windows Run (⊞+R) to open CozyMDT or use the executable in  `~\bin`.
+For creating shortcuts see [Creating shortcuts]
+
+# Optional tweaks
+
+Read this page for optional tweaks
+
+## Creating shortcuts
+
+For creating shortcuts, you can use the `shortcuts.bat` file in the setup folder.
+This will ask you for what shortcuts you want to create and make them as `.lnk` files
