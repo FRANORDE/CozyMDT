@@ -34,7 +34,7 @@ You can use the Windows Run (⊞+R) to open CozyMDT or use the executable in  `~
 For creating shortcuts see [Creating shortcuts](https://github.com/FRANORDE/CozyMDT/tree/main#creating-shortcuts)
 
 <p>
-  <img src="pjassets/CozyMDTphoto.png" width="200" alt="CozyMDT Photo">
+  <img src="pjassets/CozyMDTphoto.png" width="500" alt="CozyMDT Photo">
 </p>
 
 # Optional tweaks
