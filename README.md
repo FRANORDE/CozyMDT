@@ -33,6 +33,10 @@ This will create the executable file, copy it, create the `bin` directory inside
 You can use the Windows Run (⊞+R) to open CozyMDT or use the executable in  `~\bin`.
 For creating shortcuts see [Creating shortcuts](https://github.com/FRANORDE/CozyMDT/tree/main#creating-shortcuts)
 
+<p>
+  <img src="pjassets/CozyMDTphoto.png" width="200" alt="CozyMDT Photo">
+</p>
+
 # Optional tweaks
 
 Read this page for optional tweaks
@@ -40,4 +44,4 @@ Read this page for optional tweaks
 ## Creating shortcuts
 
 For creating shortcuts, you can use the `shortcuts.bat` file in the setup folder.
-This will ask you for what shortcuts you want to create and make them as `.lnk` files
+This will ask you for what shortcuts you want to create and make them as `.lnk` file
