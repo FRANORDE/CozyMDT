@@ -469,8 +469,7 @@ impl CozyMdtApp {
                 if exe_path.exists() {
                     self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
                     let mut input = String::new();
-                    use std::io::{self, Write, stdin, stdout};
-                    stdout().flush().unwrap();
+                    use std::io::stdin;
                     stdin().read_line(&mut input).unwrap();
                     if input.trim().to_lowercase() == "y" {
                         if let Err(e) = std::fs::remove_file(&exe_path) {

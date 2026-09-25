@@ -15,7 +15,7 @@
 
 ## Step 1
 
-Download the latest release as a .zip file from the [releases page](https://github.com/FRANORDE/CozyMDT/releases).
+Download the latest release as a .zip file from the [releases page](https://github.com/FRANORDE/CozyMDT/releases) (Use releases! Direct code download might be unstable!).
 
 ## Step 2
 
