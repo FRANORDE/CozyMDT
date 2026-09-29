@@ -4,13 +4,28 @@
 
 use eframe::egui;
 use serde::Deserialize;
-use std::io::{BufRead, BufReader};
+use std::io::Read;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::{Receiver, TryRecvError, channel};
+use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+fn spawn_reader<R: Read + Send + 'static>(
+    mut stream: R,
+    tx: Sender<String>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let mut buf = [0u8; 1024];
+        while let Ok(n) = stream.read(&mut buf) {
+            if n == 0 {
+                break;
+            }
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).into_owned());
+        }
+    })
+}
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -361,6 +376,9 @@ struct CozyMdtApp {
     palette: theme::Palette,
     title_bar: TitleBarMode,
     corner_radius: f32,
+    pending_confirmation: Option<PathBuf>,
+    live_line: String,
+    cr_pending: bool,
 }
 
 impl CozyMdtApp {
@@ -397,6 +415,9 @@ impl CozyMdtApp {
             palette,
             title_bar,
             corner_radius,
+            pending_confirmation: None,
+            live_line: String::new(),
+            cr_pending: false,
         }
     }
 
@@ -417,6 +438,28 @@ impl CozyMdtApp {
             prompt: self.prompt(),
             input: input.to_string(),
         });
+    }
+
+    fn push_output_chunk(&mut self, chunk: &str) {
+        for ch in chunk.chars() {
+            match ch {
+                '\r' => self.cr_pending = true,
+                '\n' => {
+                    // "\r\n" is a normal line ending, not an overwrite
+                    self.cr_pending = false;
+                    let line = std::mem::take(&mut self.live_line);
+                    self.log(line);
+                }
+                c => {
+                    if self.cr_pending {
+                        // lone '\r': the next text overwrites the current line
+                        self.live_line.clear();
+                        self.cr_pending = false;
+                    }
+                    self.live_line.push(c);
+                }
+            }
+        }
     }
 
     fn prompt(&self) -> String {
@@ -464,28 +507,16 @@ impl CozyMdtApp {
                 true
             }
             "cozyu" => {
-                let home_dir = dirs::home_dir().unwrap();
-                let exe_path = home_dir.join("bin").join("CozyMDT.exe");
-                if exe_path.exists() {
-                    self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
-                    let mut input = String::new();
-                    use std::io::stdin;
-                    stdin().read_line(&mut input).unwrap();
-                    if input.trim().to_lowercase() == "y" {
-                        if let Err(e) = std::fs::remove_file(&exe_path) {
-                            self.log_error(format!("Could not uninstall CozyMDT: {}", e));
-                        } else {
-                            self.log_info("CozyMDT has been uninstalled.");
-                        }
-                    } else {
-                        self.log_info("Uninstall cancelled.");
+                match std::env::current_exe() {
+                    Ok(exe) => {
+                        self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
+                        self.pending_confirmation = Some(exe);
                     }
-                } else {
-                    self.log_info("CozyMDT is not installed.");
+                    Err(e) => self.log_error(format!("Could not locate CozyMDT: {}", e)),
                 }
                 true
             }
-            _ => false,
+            _ => false, // <- this arm must stay, it handles every other command
         }
     }
 
@@ -521,7 +552,6 @@ impl CozyMdtApp {
             let mut cmd = Command::new(&program);
             cmd.args(&args)
                 .current_dir(&cwd)
-                .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .creation_flags(CREATE_NO_WINDOW);
@@ -536,20 +566,10 @@ impl CozyMdtApp {
                     let mut readers = Vec::new();
 
                     if let Some(stdout) = stdout {
-                        let tx_out = tx.clone();
-                        readers.push(thread::spawn(move || {
-                            for line in BufReader::new(stdout).lines().flatten() {
-                                let _ = tx_out.send(line);
-                            }
-                        }));
+                        readers.push(spawn_reader(stdout, tx.clone()));
                     }
                     if let Some(stderr) = stderr {
-                        let tx_err = tx.clone();
-                        readers.push(thread::spawn(move || {
-                            for line in BufReader::new(stderr).lines().flatten() {
-                                let _ = tx_err.send(line);
-                            }
-                        }));
+                        readers.push(spawn_reader(stderr, tx.clone()));
                     }
 
                     for r in readers {
@@ -569,7 +589,23 @@ impl CozyMdtApp {
 
     fn run_command(&mut self, input: &str) {
         self.log_command(input);
-
+        if let Some(exe) = self.pending_confirmation.take() {
+            if input.eq_ignore_ascii_case("y") {
+                // A running exe can't delete itself on Windows: a detached cmd waits, then deletes it
+                let script = format!(
+                    "/C ping -n 3 127.0.0.1 >nul & del /F /Q \"{}\"",
+                    exe.display()
+                );
+                let _ = Command::new("cmd")
+                    .raw_arg(script)
+                    .creation_flags(CREATE_NO_WINDOW | 0x00000008) // DETACHED_PROCESS
+                    .spawn();
+                std::process::exit(0);
+            } else {
+                self.log_info("Uninstall cancelled.");
+            }
+            return;
+        }
         if input.is_empty() {
             return;
         }
@@ -797,6 +833,10 @@ fn draw_terminal_body(app: &mut CozyMdtApp, ui: &mut egui::Ui) {
                 draw_history_line(ui, line, &palette);
             }
 
+            if !app.live_line.is_empty() {
+                ui.colored_label(palette.text, &app.live_line);
+            }
+
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.colored_label(palette.subtext, app.prompt());
@@ -871,13 +911,43 @@ impl eframe::App for CozyMdtApp {
                 }
             }
         }
-        for line in new_lines {
-            self.log(line);
+        for chunk in new_lines {
+            self.push_output_chunk(&chunk);
+        }
+        fn handle_resize_edges(ctx: &egui::Context) {
+            use egui::{CursorIcon, ResizeDirection as D, ViewportCommand};
+            const B: f32 = 6.0; // edge grab thickness
+
+            let Some(pos) = ctx.input(|i| i.pointer.hover_pos()) else {
+                return;
+            };
+            let r = ctx.screen_rect();
+            let (l, rt) = (pos.x < r.left() + B, pos.x > r.right() - B);
+            let (t, b) = (pos.y < r.top() + B, pos.y > r.bottom() - B);
+
+            let (dir, cursor) = match (l, rt, t, b) {
+                (true, _, true, _) => (D::NorthWest, CursorIcon::ResizeNorthWest),
+                (_, true, true, _) => (D::NorthEast, CursorIcon::ResizeNorthEast),
+                (true, _, _, true) => (D::SouthWest, CursorIcon::ResizeSouthWest),
+                (_, true, _, true) => (D::SouthEast, CursorIcon::ResizeSouthEast),
+                (true, ..) => (D::West, CursorIcon::ResizeHorizontal),
+                (_, true, ..) => (D::East, CursorIcon::ResizeHorizontal),
+                (_, _, true, _) => (D::North, CursorIcon::ResizeVertical),
+                (_, _, _, true) => (D::South, CursorIcon::ResizeVertical),
+                _ => return,
+            };
+            ctx.set_cursor_icon(cursor);
+            if ctx.input(|i| i.pointer.primary_pressed()) {
+                ctx.send_viewport_cmd(ViewportCommand::BeginResize(dir));
+            }
         }
         if disconnected {
+            if !self.live_line.is_empty() {
+                let line = std::mem::take(&mut self.live_line);
+                self.log(line);
+            }
             self.output_rx = None;
             self.is_running = false;
-            // Clear the running child reference when the command finishes
             *self.running_child.lock().unwrap() = None;
         }
         // This has tortured me for hours, but I finally figured out why CTRL+C wasn't working in CozyMDT:
@@ -907,6 +977,11 @@ impl eframe::App for CozyMdtApp {
         let palette = self.palette;
         let title_bar_mode = self.title_bar;
         let corner_radius = self.corner_radius;
+
+        // Borderless windows have no native resize edges, so we handle them ourselves
+        if title_bar_mode != TitleBarMode::Windows {
+            handle_resize_edges(ctx);
+        }
 
         // Everything (title bar + content) lives inside ONE panel with
         // rounded corners on all four sides — see draw_title_bar() and
