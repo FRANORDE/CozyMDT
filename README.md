@@ -36,6 +36,10 @@ For creating shortcuts see [Creating shortcuts](https://github.com/FRANORDE/Cozy
   <img src="pjassets/CozyMDTphoto.png" width="500" style="max-width:100%;" alt="CozyMDT Photo">
 </p>
 
+# Features
+
+Features added in CozyMDT
+
 ## Custom commands
 
 The custom commands added in CozyMDT are all from the CozyT shell.
@@ -48,7 +52,11 @@ You can type `help` for opening the commands menu.
 
 ### Available shells
 
-The available shells are **Powershell** (ps or powershell on `switch` command), **CMD** (cmd on `switch` command), **Git Bash** (bash on `switch` command) and **CozyT**, the CozyMDT custom terminal (cozyt on `switch` command).
+The available shells are: 
+- **Powershell** (ps or powershell on `switch` command)
+- **CMD** (cmd on `switch` command)
+- **Git Bash** (bash on `switch` command)
+- **CozyT**, the CozyMDT custom terminal (cozyt on `switch` command).
 
 # Optional tweaks
 
