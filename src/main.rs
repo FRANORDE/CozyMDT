@@ -12,17 +12,43 @@ use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+// Reads raw chunks instead of waiting for '\n', so partial lines show up immediately.
+// Bytes of a UTF-8 character cut in half by the read boundary are kept for the next read.
 fn spawn_reader<R: Read + Send + 'static>(
     mut stream: R,
     tx: Sender<String>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut buf = [0u8; 1024];
+        let mut pending: Vec<u8> = Vec::new();
+
         while let Ok(n) = stream.read(&mut buf) {
             if n == 0 {
                 break;
             }
-            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).into_owned());
+            pending.extend_from_slice(&buf[..n]);
+
+            // How many bytes can we safely send now?
+            let valid = match std::str::from_utf8(&pending) {
+                // Everything is valid UTF-8
+                Ok(_) => pending.len(),
+                // The data ends in the middle of a character: send only what's complete
+                Err(e) if e.error_len().is_none() => e.valid_up_to(),
+                // Genuinely invalid bytes: send everything, lossy conversion handles them
+                Err(_) => pending.len(),
+            };
+
+            let text = String::from_utf8_lossy(&pending[..valid]).into_owned();
+            pending.drain(..valid);
+
+            if !text.is_empty() {
+                let _ = tx.send(text);
+            }
+        }
+
+        // Stream closed: flush whatever is left instead of losing it
+        if !pending.is_empty() {
+            let _ = tx.send(String::from_utf8_lossy(&pending).into_owned());
         }
     })
 }
@@ -473,16 +499,18 @@ impl CozyMdtApp {
     fn handle_cozyt_command(&mut self, input: &str) -> bool {
         match input {
             "help" => {
-                self.log("CozyT built-in commands:");
-                self.log("  help     - show this message");
-                self.log("  version  - show CozyMDT version");
-                self.log("  settings - open CozyMDT settings file (theme, font, title bar)");
-                self.log("  cd <dir> - change current directory");
-                self.log("  cozyu    - uninstall CozyMDT");
+                self.log_info("CozyT built-in commands:");
+                self.log_info("  help     - show this message");
+                self.log_info("  version  - show CozyMDT version");
+                self.log_info("  switch <shell> - switch to another shell (cmd, powershell, (git)bash, cozyt)");
+                self.log_info("  settings - open CozyMDT settings file (theme, font, title bar)");
+                self.log_info("  cd <dir> - change current directory");
+                self.log_info("  unin     - uninstall CozyMDT");
+                self.log_info("  exit     - exit CozyMDT");
                 true
             }
             "version" => {
-                self.log("CozyMDT v0.1.0");
+                self.log("CozyMDT v1.2.3");
                 true
             }
             "settings" => {
@@ -506,7 +534,7 @@ impl CozyMdtApp {
                 }
                 true
             }
-            "cozyu" => {
+            "unin" => {
                 match std::env::current_exe() {
                     Ok(exe) => {
                         self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
@@ -521,7 +549,8 @@ impl CozyMdtApp {
     }
 
     fn handle_cd(&mut self, target: &str) {
-        let target = target.trim();
+        // Strip surrounding quotes, like a real shell does before using the path
+        let target = target.trim().trim_matches(|c| c == '"' || c == '\'');
 
         let new_path = if target.is_empty() {
             dirs::home_dir().unwrap_or_else(|| self.current_dir.clone())
@@ -550,8 +579,16 @@ impl CozyMdtApp {
 
         thread::spawn(move || {
             let mut cmd = Command::new(&program);
-            cmd.args(&args)
-                .current_dir(&cwd)
+
+            if program == "cmd" {
+                // cmd doesn't understand Rust's \" escaping, so pass the command line raw.
+                // /S makes cmd strip only the outermost quotes we add here.
+                cmd.raw_arg("/S /C").raw_arg(format!("\"{}\"", args[1]));
+            } else {
+                cmd.args(&args);
+            }
+
+            cmd.current_dir(&cwd)
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .creation_flags(CREATE_NO_WINDOW);
@@ -643,7 +680,17 @@ impl CozyMdtApp {
 
         let (program, flag) = self.current_shell.program_and_flag();
         let flag = flag.to_string();
-        self.run_external(&program, vec![flag, input.to_string()]);
+
+        // Ask each shell to emit UTF-8 so accented characters decode correctly
+        let wrapped = match self.current_shell {
+            Shell::Cmd => format!("chcp 65001 >nul & cmd /S /C \"{}\"", input),
+            Shell::PowerShell => format!(
+                "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; {}",
+                input
+            ),
+            _ => input.to_string(), // Git Bash already outputs UTF-8
+        };
+        self.run_external(&program, vec![flag, wrapped]);
     }
 }
 
@@ -671,7 +718,7 @@ fn draw_history_line(ui: &mut egui::Ui, line: &HistoryLine, palette: &theme::Pal
             ui.colored_label(palette.blue, text);
         }
         HistoryLine::Command { prompt, input } => {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
                 ui.colored_label(palette.subtext, prompt);
 
@@ -692,6 +739,7 @@ fn layout_command_input(
     text: &str,
     wrap_width: f32,
     palette: &theme::Palette,
+    indent: f32, // width reserved on the first row for the prompt
 ) -> std::sync::Arc<egui::Galley> {
     let mut job = egui::text::LayoutJob::default();
     let font_id = egui::TextStyle::Monospace.resolve(ui.style());
@@ -700,17 +748,16 @@ fn layout_command_input(
     let first_word = parts.next().unwrap_or("");
     let rest = parts.next();
 
-    if !first_word.is_empty() {
-        job.append(
-            first_word,
-            0.0,
-            egui::TextFormat {
-                font_id: font_id.clone(),
-                color: first_word_color(first_word, palette),
-                ..Default::default()
-            },
-        );
-    }
+    // Always append the first section, even if empty, so the indent is applied
+    job.append(
+        first_word,
+        indent,
+        egui::TextFormat {
+            font_id: font_id.clone(),
+            color: first_word_color(first_word, palette),
+            ..Default::default()
+        },
+    );
 
     if let Some(rest) = rest {
         job.append(
@@ -727,7 +774,6 @@ fn layout_command_input(
     job.wrap.max_width = wrap_width;
     ui.fonts(|f| f.layout_job(job))
 }
-
 // Draws a single title-bar button: no border/background by default,
 // a highlight on hover (solid red for close, a faint overlay for the
 // others), and a plain glyph guaranteed to exist in any font.
@@ -837,43 +883,57 @@ fn draw_terminal_body(app: &mut CozyMdtApp, ui: &mut egui::Ui) {
                 ui.colored_label(palette.text, &app.live_line);
             }
 
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.colored_label(palette.subtext, app.prompt());
-
-                let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                    layout_command_input(ui, text, wrap_width, &palette)
-                };
-
-                let text_edit = egui::TextEdit::singleline(&mut app.input)
-                    .frame(false)
-                    .desired_width(f32::INFINITY)
-                    .text_color(palette.text)
-                    .layouter(&mut layouter)
-                    .interactive(!app.is_running);
-
-                let response = ui.add(text_edit);
-
-                if app.focus_input && !app.is_running {
-                    response.request_focus();
-                    app.focus_input = false;
-                }
-
-                if !app.is_running
-                    && response.lost_focus()
-                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                {
-                    let input = std::mem::take(&mut app.input);
-                    let trimmed = input.trim().to_string();
-
-                    if trimmed == "exit" {
-                        std::process::exit(0);
-                    }
-
-                    app.run_command(&trimmed);
-                    app.focus_input = true;
-                }
+            let prompt = app.prompt();
+            let font_id = egui::TextStyle::Monospace.resolve(ui.style());
+            // Measure the prompt so the first row of the input leaves exactly that much room
+            let prompt_width = ui.fonts(|f| {
+                f.layout_no_wrap(prompt.clone(), font_id.clone(), palette.subtext)
+                    .size()
+                    .x
             });
+
+            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                layout_command_input(ui, text, wrap_width, &palette, prompt_width)
+            };
+
+            let output = egui::TextEdit::singleline(&mut app.input)
+                .frame(false)
+                .desired_width(f32::INFINITY)
+                .text_color(palette.text)
+                .layouter(&mut layouter)
+                .interactive(!app.is_running)
+                .show(ui);
+
+            let response = output.response;
+
+            // Paint the prompt in the space reserved on the first row
+            ui.painter().text(
+                output.galley_pos,
+                egui::Align2::LEFT_TOP,
+                &prompt,
+                font_id,
+                palette.subtext,
+            );
+
+            if app.focus_input && !app.is_running {
+                response.request_focus();
+                app.focus_input = false;
+            }
+
+            if !app.is_running
+                && response.lost_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+            {
+                let input = std::mem::take(&mut app.input);
+                let trimmed = input.trim().to_string();
+
+                if trimmed == "exit" {
+                    std::process::exit(0);
+                }
+
+                app.run_command(&trimmed);
+                app.focus_input = true;
+            }
         });
 }
 
