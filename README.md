@@ -56,7 +56,6 @@ You can type `help` to open the commands menu.
 
 - **switch** [OPTION] switches the current shell (e.g. `switch ps` switches to PowerShell, so you can use PowerShell commands).
 - **settings** opens the settings file.
-- **cd** [DIR] changes the current directory.
 
 ### Available shells
 
