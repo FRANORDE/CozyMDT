@@ -1,4 +1,5 @@
 #define AppName "CozyMDT"
+; I need to remember to change this version before every release :[
 #define AppVersion "1.3.0"
 
 [Setup]
@@ -21,6 +22,8 @@ UninstallDisplayIcon={app}\CozyMDT.exe
 ; Close a running CozyMDT during updates, and notify Windows about PATH changes
 CloseApplications=yes
 ChangesEnvironment=yes
+; Name shown in "Apps & Features" (defaults to "CozyMDT version 1.3.0")
+UninstallDisplayName={#AppName}-Uninstall
 
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
