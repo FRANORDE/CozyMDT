@@ -1,5 +1,5 @@
 #define AppName "CozyMDT"
-#define AppVersion "1.3"
+#define AppVersion "1.3.0"
 
 [Setup]
 ; Fixed GUID that identifies the app: never change it between versions.
@@ -32,6 +32,8 @@ Name: "addtopath"; Description: "Add CozyMDT to the user PATH"
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\CozyMDT.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\CozyMDT.exe"; Tasks: desktopicon
+; Adds an "Uninstall CozyMDT" entry next to the app in the Start Menu
+Name: "{autoprograms}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \

@@ -63,7 +63,7 @@ The available shells are:
 - **PowerShell** (`ps` or `powershell` on the `switch` command)
 - **CMD** (`cmd` on the `switch` command)
 - **Git Bash** (`bash` on the `switch` command)
-- **CozyT**, the CozyMDT custom terminal (`cozyt` on the `switch` command)
+- **CozyT**, the CozyMDT custom shell (`cozyt` on the `switch` command)
 
 # Optional tweaks
 
@@ -89,8 +89,16 @@ cargo build --release
 
 The executable will be in `target\release\CozyMDT.exe`.
 
-# Thanks to
+# Notes and credits
+
+# Notes
+
+- Some AI was used for developement, but the code was manually reviewed and tested.
+- Free and open-source software is the best software.
+
+## Thanks to
 
 - [Catppuccin](https://catppuccin.com/palette/) for their beautiful palettes
 - [Nerd Fonts](https://www.nerdfonts.com/font-downloads) for the patched JetBrains Mono font (licensed under the OFL)
 - [Inno Setup](https://jrsoftware.org/isinfo.php) for the great installer system
+- You, for using CozyMDT!

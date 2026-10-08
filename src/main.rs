@@ -402,7 +402,6 @@ struct CozyMdtApp {
     palette: theme::Palette,
     title_bar: TitleBarMode,
     corner_radius: f32,
-    pending_confirmation: Option<PathBuf>,
     live_line: String,
     cr_pending: bool,
 }
@@ -441,7 +440,6 @@ impl CozyMdtApp {
             palette,
             title_bar,
             corner_radius,
-            pending_confirmation: None,
             live_line: String::new(),
             cr_pending: false,
         }
@@ -464,6 +462,13 @@ impl CozyMdtApp {
             prompt: self.prompt(),
             input: input.to_string(),
         });
+    }
+
+    // Wipes the visible history, like cls/clear in a normal terminal
+    fn clear_screen(&mut self) {
+        self.history.clear();
+        self.live_line.clear();
+        self.cr_pending = false;
     }
 
     fn push_output_chunk(&mut self, chunk: &str) {
@@ -505,7 +510,7 @@ impl CozyMdtApp {
                 self.log_info("  switch <shell> - switch to another shell (cmd, powershell, (git)bash, cozyt)");
                 self.log_info("  settings - open CozyMDT settings file (theme, font, title bar)");
                 self.log_info("  cd <dir> - change current directory");
-                self.log_info("  unin     - uninstall CozyMDT");
+                self.log_info("  cls/clear - clear the screen");
                 self.log_info("  exit     - exit CozyMDT");
                 true
             }
@@ -531,16 +536,6 @@ impl CozyMdtApp {
                     self.log_error(format!("Could not open settings file: {}", e));
                 } else {
                     self.log_info("Restart CozyMDT after saving to apply changes.");
-                }
-                true
-            }
-            "unin" => {
-                match std::env::current_exe() {
-                    Ok(exe) => {
-                        self.log("Are you sure you want to uninstall CozyMDT? (y/n)");
-                        self.pending_confirmation = Some(exe);
-                    }
-                    Err(e) => self.log_error(format!("Could not locate CozyMDT: {}", e)),
                 }
                 true
             }
@@ -626,26 +621,6 @@ impl CozyMdtApp {
 
     fn run_command(&mut self, input: &str) {
         self.log_command(input);
-        if let Some(exe) = self.pending_confirmation.take() {
-            if input.eq_ignore_ascii_case("y") {
-                // A running exe can't delete itself on Windows: a detached cmd waits, then deletes it
-                let script = format!(
-                    "/C ping -n 3 127.0.0.1 >nul & del /F /Q \"{}\"",
-                    exe.display()
-                );
-                let _ = Command::new("cmd")
-                    .raw_arg(script)
-                    .creation_flags(CREATE_NO_WINDOW | 0x00000008) // DETACHED_PROCESS
-                    .spawn();
-                std::process::exit(0);
-            } else {
-                self.log_info("Uninstall cancelled.");
-            }
-            return;
-        }
-        if input.is_empty() {
-            return;
-        }
 
         if let Some(target) = input.strip_prefix("cd ") {
             self.handle_cd(target);
@@ -668,6 +643,11 @@ impl CozyMdtApp {
                 }
             };
             self.log_info(format!("Switched to {}", self.current_shell.name()));
+            return;
+        }
+
+        if input == "cls" || input == "clear" {
+            self.clear_screen();
             return;
         }
 

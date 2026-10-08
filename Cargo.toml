@@ -11,5 +11,6 @@ serde = { version = "1", features = ["derive"] }
 json5 = "1"
 mpsc = "0.3.0"
 
-[target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "target-feature=+crt-static"]
+[[bin]]
+name = "CozyMDT"
+path = "src/main.rs"
