@@ -91,10 +91,10 @@ The executable will be in `target\release\CozyMDT.exe`.
 
 # Notes and credits
 
-# Notes
+## Notes
 
 - Some AI was used for developement, but the code was manually reviewed and tested.
-- Free and open-source software is the best software.
+- Free and open-source software is the best software forever.
 
 ## Thanks to
 
