@@ -24,7 +24,7 @@ ChangesEnvironment=yes
 
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "assets\OFL.txt"; DestDir: "{app}"; Flags: ignoreversion"
+Source: "assets\OFL.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
