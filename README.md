@@ -15,22 +15,29 @@
 
 ## Step 1
 
-Download the latest release as a .zip file from the [releases page](https://github.com/FRANORDE/CozyMDT/releases) (Use releases! Direct code download might be unstable!).
+Download the latest `CozyMDT-Setup-<version>.exe` from the [releases page](https://github.com/FRANORDE/CozyMDT/releases/latest) (use releases! Downloading the code directly might be unstable).
+
+You don't need anything else: no zip to extract and no Rust to install.
 
 ## Step 2
 
-Extract the .zip file to a folder of your choice.
+Run the installer and follow the wizard. By default CozyMDT is installed in `%USERPROFILE%\bin` and no administrator rights are needed.
 
-## Step 3
+The wizard lets you choose:
+- whether to add CozyMDT to your `PATH`, so it can be called from anywhere (Highly recommended)
+- whether to create a desktop shortcut (a Start Menu entry is always created)
 
-**Prerequisite:** [Rust](https://rustup.rs) must be installed.   
-Use the easy-setup file `init.bat` in the setup folder.
-This will create the executable file, copy it, create the `bin` directory inside of `~`, and add it to the PATH so it can be called from anywhere
+> **Note:** since the installer is not code-signed, Windows SmartScreen may show a warning the first time.
+> Click **More info → Run anyway**.
+
+## Uninstall
+
+Use **Settings → Apps → Installed apps** and remove CozyMDT.
 
 # Usage
 
-You can use the Windows Run (⊞+R) to open CozyMDT or use the executable in  `~\bin`.
-For creating shortcuts see [Creating shortcuts](https://github.com/FRANORDE/CozyMDT/tree/main#creating-shortcuts)
+Open CozyMDT from the Start Menu or your desktop shortcut.
+If you added it to the `PATH`, you can also open it from the Windows Run dialog (⊞+R) by typing `CozyMDT`.
 
 <p>
   <img src="pjassets/CozyMDTphoto.png" width="500" style="max-width:100%;" alt="CozyMDT Photo">
@@ -42,21 +49,22 @@ Features added in CozyMDT
 
 ## Custom commands
 
-The custom commands added in CozyMDT are all from the CozyT shell.
-You can type `help` for opening the commands menu.
+The custom commands added in CozyMDT all belong to the CozyT shell.
+You can type `help` to open the commands menu.
 
 ### Most important new commands
 
-**switch** [OPTION] switches the current shell (Ex. `switch ps`, switches to powershell and makes you use powershell commands).
-**settings** opens the settings file 
+- **switch** [OPTION] switches the current shell (e.g. `switch ps` switches to PowerShell, so you can use PowerShell commands).
+- **settings** opens the settings file.
+- **cd** [DIR] changes the current directory.
 
 ### Available shells
 
-The available shells are: 
-- **Powershell** (ps or powershell on `switch` command)
-- **CMD** (cmd on `switch` command)
-- **Git Bash** (bash on `switch` command)
-- **CozyT**, the CozyMDT custom terminal (cozyt on `switch` command).
+The available shells are:
+- **PowerShell** (`ps` or `powershell` on the `switch` command)
+- **CMD** (`cmd` on the `switch` command)
+- **Git Bash** (`bash` on the `switch` command)
+- **CozyT**, the CozyMDT custom terminal (`cozyt` on the `switch` command)
 
 # Optional tweaks
 
@@ -64,10 +72,26 @@ These are not required for basic usage.
 
 ## Customization
 
-Customizing CozyMDT is pretty easy, just switch to CozyT shell using the `switch cozyt` command and type settings.
-This will open a JSONC file to edit the settings
+Customizing CozyMDT is easy: switch to the CozyT shell with `switch cozyt` and type `settings`.
+This opens a JSONC file where you can change the theme, font, title bar and rounded corners.
+Restart CozyMDT after saving to apply the changes.
 
-## Creating shortcuts
+# Building from source
 
-For creating shortcuts, you can use the `shortcuts.bat` file in the setup folder.
-This will ask you for what shortcuts you want to create and make them as `.lnk` file
+This is only needed if you want to compile CozyMDT yourself.
+
+**Prerequisite:** [Rust](https://rustup.rs) must be installed.
+
+```
+git clone https://github.com/FRANORDE/CozyMDT.git
+cd CozyMDT
+cargo build --release
+```
+
+The executable will be in `target\release\CozyMDT.exe`.
+
+# Thanks to
+
+- [Catppuccin](https://catppuccin.com/palette/) for their beautiful palettes
+- [Nerd Fonts](https://www.nerdfonts.com/font-downloads) for the patched JetBrains Mono font (licensed under the OFL)
+- [Inno Setup](https://jrsoftware.org/isinfo.php) for the great installer system

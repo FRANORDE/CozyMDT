@@ -1,5 +1,5 @@
 #define AppName "CozyMDT"
-#define AppVersion "1.2.3"
+#define AppVersion "1.3"
 
 [Setup]
 ; Fixed GUID that identifies the app: never change it between versions.
