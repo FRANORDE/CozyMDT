@@ -105,11 +105,11 @@ cargo build --release
 
 The executable will be in `target\release\CozyMDT.exe`.
 
-# Notes and credits
+# Notes, credits and licences
 
 ## Notes
 
-- Some AI was used for developement, but the code was manually reviewed and tested.
+- Some AI was used for development, but the code was manually reviewed and tested.
 - Free and open-source software is the best software forever.
 
 ## Thanks to
@@ -118,3 +118,13 @@ The executable will be in `target\release\CozyMDT.exe`.
 - [Nerd Fonts](https://www.nerdfonts.com/font-downloads) for the patched JetBrains Mono font (licensed under the OFL)
 - [Inno Setup](https://jrsoftware.org/isinfo.php) for the great installer system
 - You, for using CozyMDT!
+
+## Licenses
+
+CozyMDT is released under the [MIT License](LICENSE).
+
+CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.html](THIRD-PARTY-NOTICES.html), which is also installed with CozyMDT in the `licenses` folder.
+
+- **JetBrains Mono (Nerd Font patched)** is bundled in the executable and licensed under the [SIL Open Font License 1.1](assets/OFL.txt).
+- The **Catppuccin** color palettes are licensed under the MIT License.
+- The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php).

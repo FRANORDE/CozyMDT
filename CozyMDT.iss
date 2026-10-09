@@ -31,6 +31,7 @@ SetupIconFile=assets\CozyMDT-install.ico
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\OFL.txt"; DestDir: "{app}\licenses"; DestName: "OFL-JetBrainsMono.txt"; Flags: ignoreversion
 Source: "assets\CozyMDT-uninstall.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
+Source: "THIRD-PARTY-NOTICES.html"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
