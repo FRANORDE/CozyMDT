@@ -126,5 +126,5 @@ CozyMDT is released under the [MIT License](LICENSE).
 CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.html](THIRD-PARTY-NOTICES.html), which is also installed with CozyMDT in the `licenses` folder.
 
 - **JetBrains Mono (Nerd Font patched)** is bundled in the executable and licensed under the [SIL Open Font License 1.1](assets/OFL.txt).
-- The **Catppuccin** color palettes are licensed under the MIT License.
+- The **Catppuccin** color palettes aren't copyrighted (because they are colors), but are licensed under the MIT License.
 - The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php).
