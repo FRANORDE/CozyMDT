@@ -1,6 +1,6 @@
 #define AppName "CozyMDT"
 ; I need to remember to change this version before every release :[
-#define AppVersion "1.3.0"
+#define AppVersion "1.3.1"
 
 [Setup]
 ; Fixed GUID that identifies the app: never change it between versions.
