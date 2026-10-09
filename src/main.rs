@@ -1062,6 +1062,10 @@ fn main() -> eframe::Result<()> {
     // Windows' own decorations are only enabled for TitleBarMode::Windows.
     let decorations = title_bar == TitleBarMode::Windows;
 
+    // Window/taskbar icon shown while the app is running (eframe would use the egui logo otherwise)
+    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/CozyMDT-icon-512.png"))
+        .expect("failed to load the window icon");
+
     // Rounded corners only make sense (and only work) on a borderless
     // window — "windows" mode already has its own native corner handling.
     let rounding_enabled = settings.rounded_corners && title_bar != TitleBarMode::Windows;
@@ -1075,6 +1079,7 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_decorations(decorations)
             .with_transparent(rounding_enabled)
+            .with_icon(icon)
             .with_inner_size([900.0, 600.0]),
         ..Default::default()
     };

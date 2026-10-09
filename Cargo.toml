@@ -1,6 +1,6 @@
 [package]
 name = "cozymdt"
-version = "0.1.0"
+version = "1.3.1"
 edition = "2024"
 
 [dependencies]
@@ -14,3 +14,6 @@ mpsc = "0.3.0"
 [[bin]]
 name = "CozyMDT"
 path = "src/main.rs"
+
+[build-dependencies]
+winresource = "0.1"

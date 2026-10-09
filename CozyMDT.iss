@@ -9,7 +9,6 @@ AppId={{A3F1C2D4-5B6E-4F70-9A81-2C3D4E5F6A7B}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=FRANORDE
-; Same folder init.bat used: %USERPROFILE%\bin
 DefaultDirName={%USERPROFILE}\bin
 ; No admin rights needed, and settings.jsonc can be written next to the exe
 PrivilegesRequired=lowest
@@ -22,12 +21,16 @@ UninstallDisplayIcon={app}\CozyMDT.exe
 ; Close a running CozyMDT during updates, and notify Windows about PATH changes
 CloseApplications=yes
 ChangesEnvironment=yes
-; Name shown in "Apps & Features" (defaults to "CozyMDT version 1.3.0")
-UninstallDisplayName={#AppName}-Uninstall
+; Uninstaller name
+UninstallDisplayName={#AppName}
+; Installer icon
+SetupIconFile=assets\CozyMDT-install.ico
+
 
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "assets\OFL.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "assets\OFL.txt"; DestDir: "{app}\licenses"; DestName: "OFL-JetBrainsMono.txt"; Flags: ignoreversion
+Source: "assets\CozyMDT-uninstall.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
@@ -37,7 +40,7 @@ Name: "addtopath"; Description: "Add CozyMDT to the user PATH"
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\CozyMDT.exe"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\CozyMDT.exe"; Tasks: desktopicon
 ; Adds an "Uninstall CozyMDT" entry next to the app in the Start Menu
-Name: "{autoprograms}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
+Name: "{autoprograms}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\icons\CozyMDT-uninstall.ico"
 
 [Registry]
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
