@@ -87,6 +87,7 @@ These are not required for basic usage.
 ## Customization
 
 Customizing CozyMDT is easy: switch to the CozyT shell with `switch cozyt` and type `settings`.
+If it asks you what app to open the JSONC file with, choose your favorite text editor (reccomended: Windows Notepad).
 This opens a JSONC file where you can change the theme, font, title bar and rounded corners.
 Restart CozyMDT after saving to apply the changes.
 
