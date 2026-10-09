@@ -65,6 +65,21 @@ The available shells are:
 - **Git Bash** (`bash` on the `switch` command)
 - **CozyT**, the CozyMDT custom shell (`cozyt` on the `switch` command)
 
+# Known issues
+
+## Laptops and small screens
+
+On some laptops (especially older ones, or screens with a small resolution or high display scaling) the **custom title bar** may not display correctly: the window buttons can fall outside the window and text selection can be imprecise.
+
+Laptop support is planned for a future release. In the meantime, using the **Windows title bar** is recommended, since it's the least affected. To switch:
+
+1. Type `switch cozyt` and then `settings` to open the settings file.
+2. Change the title bar option:
+```jsonc
+   "title_bar": "windows",
+```
+3. Save the file and restart CozyMDT.
+
 # Optional tweaks
 
 These are not required for basic usage.
