@@ -1,8 +1,8 @@
 [package]
 name = "cozymdt"
-version = "1.3.1"
+version = "1.3.2"
 edition = "2024"
-licence = "MIT"
+license = "MIT"
 
 [dependencies]
 open = "5"
@@ -10,7 +10,7 @@ dirs = "5"
 eframe = "0.29"
 serde = { version = "1", features = ["derive"] }
 json5 = "1"
-mpsc = "0.3.0"
+winreg = "0.56.0"
 
 [[bin]]
 name = "CozyMDT"
