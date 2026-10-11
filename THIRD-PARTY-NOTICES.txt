@@ -3641,7 +3641,7 @@ SOFTWARE.
 MIT License (MIT)
 
 Used by:
-  - cozymdt 1.3.2
+  - CozyMDT 1.3.2
 
 MIT License
 
