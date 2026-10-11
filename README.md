@@ -67,7 +67,7 @@ The available shells are:
 
 # Known issues
 
-## Laptops and small screens
+## Dated drivers and older laptops\graphics cards
 
 On some laptops (especially older ones, or screens with a small resolution or high display scaling) the **custom title bar** may not display correctly: the window buttons can fall outside the window and text selection can be imprecise.
 
