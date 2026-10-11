@@ -34,6 +34,7 @@ InfoBeforeFile=LICENSE
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\OFL.txt"; DestDir: "{app}\licenses"; DestName: "OFL-JetBrainsMono.txt"; Flags: ignoreversion
+Source: "assets\UFL.txt"; DestDir: "{app}\licenses"; DestName: "UFL-UbuntuFont.txt"; Flags: ignoreversion
 Source: "assets\CozyMDT-uninstall.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "LICENSE"; DestDir: "{app}\licenses"; DestName: "CozyMDT-LICENSE.txt"; Flags: ignoreversion
