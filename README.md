@@ -123,8 +123,12 @@ The executable will be in `target\release\CozyMDT.exe`.
 
 CozyMDT is released under the [MIT License](LICENSE).
 
-CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.html](THIRD-PARTY-NOTICES.html), which is also installed with CozyMDT in the `licenses` folder.
+CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.html](THIRD-PARTY-NOTICES.txt), which is also installed with CozyMDT in the `licenses` folder.
 
 - **JetBrains Mono (Nerd Font patched)** is bundled in the executable and licensed under the [SIL Open Font License 1.1](assets/OFL.txt).
 - The **Catppuccin** color palettes aren't copyrighted (because they are colors), but are licensed under the MIT License.
 - The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php).
+
+### Trademarks
+
+CozyMDT is a community project and is not affiliated with, endorsed by, or sponsored by Microsoft, the Git project, JetBrains, Catppuccin, or any other company or project mentioned here. Windows, PowerShell, and Command Prompt are trademarks of Microsoft Corporation. Git and Git Bash are part of Git for Windows, a separate project. All other names are the property of their respective owners.
