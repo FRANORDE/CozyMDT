@@ -1,6 +1,6 @@
 #define AppName "CozyMDT"
 ; I need to remember to change this version before every release :[
-#define AppVersion "1.3.1"
+#define AppVersion "1.3.2"
 
 [Setup]
 ; Fixed GUID that identifies the app: never change it between versions.
@@ -25,13 +25,18 @@ ChangesEnvironment=yes
 UninstallDisplayName={#AppName}
 ; Installer icon
 SetupIconFile=assets\CozyMDT-install.ico
+; Makes Setup notify the shell so Windows refreshes cached icons
+ChangesAssociations=yes
+; Show the licence
+InfoBeforeFile=LICENSE
 
 
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\OFL.txt"; DestDir: "{app}\licenses"; DestName: "OFL-JetBrainsMono.txt"; Flags: ignoreversion
 Source: "assets\CozyMDT-uninstall.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
-Source: "THIRD-PARTY-NOTICES.html"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "LICENSE"; DestDir: "{app}\licenses"; DestName: "CozyMDT-LICENSE.txt"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
