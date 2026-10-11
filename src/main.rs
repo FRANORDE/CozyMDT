@@ -164,12 +164,32 @@ enum TitleBarMode {
     None,
 }
 
+// Which window icon to use. "Auto" follows the Windows theme.
+#[derive(Clone, Copy, PartialEq)]
+enum IconChoice {
+    Auto,
+    Classic,
+    Light,
+    Outlined,
+}
+
 impl TitleBarMode {
     fn from_name(name: &str) -> Self {
         match name.to_lowercase().as_str() {
             "windows" => Self::Windows,
             "none" => Self::None,
             _ => Self::Custom,
+        }
+    }
+}
+
+impl IconChoice {
+    fn from_name(name: &str) -> Self {
+        match name.to_lowercase().as_str() {
+            "classic" => Self::Classic,
+            "light" => Self::Light,
+            "outlined" => Self::Outlined,
+            _ => Self::Auto,
         }
     }
 }
@@ -182,6 +202,7 @@ struct SettingsFile {
     font: String,
     title_bar: String,
     rounded_corners: bool,
+    icon: String,
 }
 
 impl Default for SettingsFile {
@@ -191,6 +212,7 @@ impl Default for SettingsFile {
             font: String::new(),
             title_bar: "custom".to_string(),
             rounded_corners: true,
+            icon: "auto".to_string(),
         }
     }
 }
@@ -225,7 +247,10 @@ const DEFAULT_SETTINGS: &str = r#"{
 
     // Rounded corners on the window. Only applies to "custom" and "none"
     // title bars — "windows" already handles its own corners natively.
-    "rounded_corners": true
+    "rounded_corners": true,
+
+    // Window/taskbar icon: "auto" (follows the Windows theme), "classic", "light" or "outlined"
+    "icon": "auto"
 }
 "#;
 
@@ -304,6 +329,47 @@ fn setup_fonts(ctx: &egui::Context, custom_font_bytes: Option<Vec<u8>>) {
         .insert(0, "cozymdt_font".to_owned());
 
     ctx.set_fonts(fonts);
+}
+
+// Loads the window icon for the given choice.
+// `dark_theme` only matters when the choice is Auto.
+fn load_icon(choice: IconChoice, dark_theme: bool) -> egui::IconData {
+    let bytes: &[u8] = match choice {
+        IconChoice::Classic => include_bytes!("../assets/classic.png"),
+        IconChoice::Light => include_bytes!("../assets/light.png"),
+        IconChoice::Outlined => include_bytes!("../assets/outlined.png"),
+        IconChoice::Auto => {
+            if dark_theme {
+                include_bytes!("../assets/light.png")
+            } else {
+                include_bytes!("../assets/classic.png")
+            }
+        }
+    };
+    eframe::icon_data::from_png_bytes(bytes).expect("failed to load the window icon")
+}
+
+use winreg::RegKey;
+use winreg::enums::HKEY_CURRENT_USER;
+
+// Returns true if Windows is using the dark theme.
+// If anything fails (missing key, missing value), we assume the light theme.
+fn system_uses_dark_theme() -> bool {
+    // The "current user" section of the registry (this can't fail)
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+
+    // Open the folder that holds the theme settings
+    if let Ok(key) =
+        hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+    {
+        // Read the number: 0 = dark theme, 1 = light theme
+        if let Ok(value) = key.get_value::<u32, _>("SystemUsesLightTheme") {
+            return value == 0;
+        }
+    }
+
+    // Something went wrong: fall back to the light theme
+    false
 }
 
 enum Shell {
@@ -1055,16 +1121,16 @@ fn main() -> eframe::Result<()> {
     let (settings, mut warnings) = load_or_create_settings();
     let palette = theme::Palette::from_name(&settings.theme);
     let title_bar = TitleBarMode::from_name(&settings.title_bar);
+    let icon_choice = IconChoice::from_name(&settings.icon);
+
+    // Window/taskbar icon shown while the app is running (eframe would use the egui logo otherwise)
+    let icon = load_icon(icon_choice, system_uses_dark_theme());
 
     let (custom_font, font_warnings) = load_custom_font(&settings);
     warnings.extend(font_warnings);
 
     // Windows' own decorations are only enabled for TitleBarMode::Windows.
     let decorations = title_bar == TitleBarMode::Windows;
-
-    // Window/taskbar icon shown while the app is running (eframe would use the egui logo otherwise)
-    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/CozyMDT-icon-512.png"))
-        .expect("failed to load the window icon");
 
     // Rounded corners only make sense (and only work) on a borderless
     // window — "windows" mode already has its own native corner handling.
