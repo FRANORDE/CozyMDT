@@ -581,7 +581,7 @@ impl CozyMdtApp {
                 true
             }
             "version" => {
-                self.log("CozyMDT v1.2.3");
+                self.log_info(format!("CozyMDT v{}", env!("CARGO_PKG_VERSION")));
                 true
             }
             "settings" => {
