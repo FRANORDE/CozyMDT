@@ -87,8 +87,8 @@ These are not required for basic usage.
 ## Customization
 
 Customizing CozyMDT is easy: switch to the CozyT shell with `switch cozyt` and type `settings`.
-If it asks you what app to open the JSONC file with, choose your favorite text editor (reccomended: Windows Notepad).
-This opens a JSONC file where you can change the theme, font, title bar and rounded corners.
+If it asks you what app to open the JSONC file with, choose your favorite text editor (recommended: Windows Notepad).
+This opens a JSONC file where you can change the theme, font, title bar, rounded corners, etc.
 Restart CozyMDT after saving to apply the changes.
 
 # Building from source
@@ -105,7 +105,7 @@ cargo build --release
 
 The executable will be in `target\release\CozyMDT.exe`.
 
-# Notes, credits and licences
+# Notes, credits and licenses
 
 ## Notes
 
@@ -121,12 +121,16 @@ The executable will be in `target\release\CozyMDT.exe`.
 
 ## Licenses
 
+After installing with the installer, all licenses can also be found in the `licenses` folder next to the app.
+
+----
+
 CozyMDT is released under the [MIT License](LICENSE).
 
-CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.html](THIRD-PARTY-NOTICES.txt), which is also installed with CozyMDT in the `licenses` folder.
+CozyMDT is built with [egui/eframe](https://github.com/emilk/egui) and other open-source Rust libraries. Their licenses (mostly MIT and Apache-2.0) are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
 - **JetBrains Mono (Nerd Font patched)** is bundled in the executable and licensed under the [SIL Open Font License 1.1](assets/OFL.txt).
-- The **Catppuccin** color palettes aren't copyrighted (because they are colors), but are licensed under the MIT License.
+- The **Catppuccin** color palettes are used under the MIT License.
 - The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php).
 
 ### Trademarks
