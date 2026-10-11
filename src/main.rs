@@ -372,6 +372,18 @@ fn system_uses_dark_theme() -> bool {
     false
 }
 
+use windows_sys::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+
+// Gives this process its own app ID, so Windows doesn't group the window
+// with the Start Menu shortcut (which would show the exe's classic icon).
+fn set_app_id() {
+    // Windows wants a UTF-16 string that ends with a 0
+    let id: Vec<u16> = "FRANORDE.CozyMDT\0".encode_utf16().collect();
+    unsafe {
+        let _ = SetCurrentProcessExplicitAppUserModelID(id.as_ptr());
+    }
+}
+
 enum Shell {
     PowerShell,
     Cmd,
@@ -1122,6 +1134,7 @@ fn main() -> eframe::Result<()> {
     let palette = theme::Palette::from_name(&settings.theme);
     let title_bar = TitleBarMode::from_name(&settings.title_bar);
     let icon_choice = IconChoice::from_name(&settings.icon);
+    set_app_id();
 
     // Window/taskbar icon shown while the app is running (eframe would use the egui logo otherwise)
     let icon = load_icon(icon_choice, system_uses_dark_theme());
