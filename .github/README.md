@@ -24,7 +24,7 @@ You don't need anything else: no zip to extract and no Rust to install.
 
 ## Step 2
 
-Run the installer and follow the wizard. By default CozyMDT is installed in `%USERPROFILE%\bin` and no administrator rights are needed.
+Run the installer and follow the wizard. By default CozyMDT is installed in `%USERPROFILE%\.cmdt` and no administrator rights are needed.
 
 The wizard lets you choose:
 - whether to add CozyMDT to your `PATH`, so it can be called from anywhere (Highly recommended)
