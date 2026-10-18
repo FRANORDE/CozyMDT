@@ -1,6 +1,6 @@
 #define AppName "CozyMDT"
 ; I need to remember to change this version before every release :[
-#define AppVersion "1.3.2"
+#define AppVersion "1.3.3"
 
 [Setup]
 ; Fixed GUID that identifies the app: never change it between versions.
@@ -9,7 +9,7 @@ AppId={{A3F1C2D4-5B6E-4F70-9A81-2C3D4E5F6A7B}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=FRANORDE
-DefaultDirName={%USERPROFILE}\bin
+DefaultDirName={%USERPROFILE}\.cmdt
 ; No admin rights needed, and settings.jsonc can be written next to the exe
 PrivilegesRequired=lowest
 OutputDir=dist
@@ -28,16 +28,15 @@ SetupIconFile=assets\CozyMDT-install.ico
 ; Makes Setup notify the shell so Windows refreshes cached icons
 ChangesAssociations=yes
 ; Show the licence
-InfoBeforeFile=LICENSE
-
+InfoBeforeFile=.github\LICENSE
 
 [Files]
 Source: "target\release\CozyMDT.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "assets\OFL.txt"; DestDir: "{app}\licenses"; DestName: "OFL-JetBrainsMono.txt"; Flags: ignoreversion
 Source: "assets\UFL.txt"; DestDir: "{app}\licenses"; DestName: "UFL-UbuntuFont.txt"; Flags: ignoreversion
 Source: "assets\CozyMDT-uninstall.ico"; DestDir: "{app}\icons"; Flags: ignoreversion
-Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
-Source: "LICENSE"; DestDir: "{app}\licenses"; DestName: "CozyMDT-LICENSE.txt"; Flags: ignoreversion
+Source: "licenses\THIRD-PARTY-NOTICES.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: ".github\LICENSE"; DestDir: "{app}\licenses"; DestName: "CozyMDT-LICENSE.txt"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
