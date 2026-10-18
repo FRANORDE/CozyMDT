@@ -4,10 +4,10 @@
 
 use eframe::egui;
 use serde::Deserialize;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -56,6 +56,7 @@ fn spawn_reader<R: Read + Send + 'static>(
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 // ============================================================
+// Layout configuration
 // For modifiying the layout of the title bar. Made cuz im lazy :}
 // ============================================================
 mod layout {
@@ -72,6 +73,28 @@ mod layout {
     pub const CLOSE_SYMBOL: &str = "×";
     pub const MAXIMIZE_SYMBOL: &str = "▢";
     pub const MINIMIZE_SYMBOL: &str = "–";
+}
+
+// ============================================================
+// Running bar configuration
+// Change the values here, nothing else needs to be touched.
+// ============================================================
+mod running_bar {
+    pub const SHOW_BAR: bool = true; // false = no bar at all
+    pub const BAR_WIDTH: usize = 16; // total cells between the brackets
+    pub const BLOCK_WIDTH: usize = 4; // cells of the moving block (keep it < BAR_WIDTH)
+    pub const SPEED: f64 = 12.0; // cells per second (higher = faster)
+    pub const LEFT_BRACKET: &str = "[";
+    pub const RIGHT_BRACKET: &str = "]";
+    pub const FILLED: char = '='; // the moving block
+    pub const EMPTY: char = ' '; // the rest of the bar
+    pub const SHOW_HINT: bool = true;
+    pub const HINT: &str = "";
+    pub const HINT_GAP: f32 = 12.0; // space between the bar and the hint
+    pub const SHOW_INPUT: bool = true; // false = no input line while a command runs
+    pub const INPUT_HINT: &str = "type here and press Enter to send input";
+    pub const INPUT_NEWLINE: &str = "\n"; // sent after your text; try "\r\n" if a program misreads it
+    pub const ECHO_INPUT: bool = true; // show what you typed in the history (passwords too!)
 }
 
 // --- Color palettes, chosen at startup based on settings.jsonc ---
@@ -203,6 +226,7 @@ struct SettingsFile {
     title_bar: String,
     rounded_corners: bool,
     icon: String,
+    default_shell: String,
 }
 
 impl Default for SettingsFile {
@@ -213,6 +237,7 @@ impl Default for SettingsFile {
             title_bar: "custom".to_string(),
             rounded_corners: true,
             icon: "auto".to_string(),
+            default_shell: "cozyt".to_string(),
         }
     }
 }
@@ -250,7 +275,11 @@ const DEFAULT_SETTINGS: &str = r#"{
     "rounded_corners": true,
 
     // Window/taskbar icon: "auto" (follows the Windows theme), "classic", "light" or "outlined"
-    "icon": "auto"
+    "icon": "auto",
+
+    // The shell CozyMDT starts in: "cozyt" (default), "powershell" (or "ps"), "cmd" or "bash".
+    // You can still change it while running with the "switch" command.
+    "default_shell": "cozyt"
 }
 "#;
 
@@ -401,6 +430,17 @@ impl Shell {
         }
     }
 
+    // Turns a name (from settings.jsonc) into a shell. None = unknown name.
+    fn from_name(name: &str) -> Option<Self> {
+        match name.trim().to_lowercase().as_str() {
+            "powershell" | "ps" => Some(Shell::PowerShell),
+            "cmd" => Some(Shell::Cmd),
+            "bash" => Some(Shell::Bash),
+            "cozyt" => Some(Shell::CozyT),
+            _ => None,
+        }
+    }
+
     fn name(&self) -> &str {
         match self {
             Shell::PowerShell => "powershell",
@@ -482,6 +522,8 @@ struct CozyMdtApp {
     corner_radius: f32,
     live_line: String,
     cr_pending: bool,
+    running_stdin: Arc<Mutex<Option<ChildStdin>>>, // the pipe to the running program
+    running_input: String,                         // text being typed while a command runs
 }
 
 impl CozyMdtApp {
@@ -490,6 +532,7 @@ impl CozyMdtApp {
         startup_warnings: Vec<String>,
         title_bar: TitleBarMode,
         corner_radius: f32,
+        default_shell: Shell,
     ) -> Self {
         let mut history = vec![
             HistoryLine::Banner("=== CozyMDT ===".to_string()),
@@ -507,7 +550,7 @@ impl CozyMdtApp {
         }
 
         Self {
-            current_shell: Shell::CozyT,
+            current_shell: default_shell,
             current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             input: String::new(),
             history,
@@ -520,6 +563,8 @@ impl CozyMdtApp {
             corner_radius,
             live_line: String::new(),
             cr_pending: false,
+            running_stdin: Arc::new(Mutex::new(None)),
+            running_input: String::new(),
         }
     }
 
@@ -547,6 +592,28 @@ impl CozyMdtApp {
         self.history.clear();
         self.live_line.clear();
         self.cr_pending = false;
+    }
+
+    // Sends a line to the running program, like typing it and pressing Enter
+    fn send_input(&mut self, line: &str) {
+        let sent = {
+            let mut slot = self.running_stdin.lock().unwrap();
+            match slot.as_mut() {
+                Some(stdin) => {
+                    let text = format!("{}{}", line, running_bar::INPUT_NEWLINE);
+                    stdin.write_all(text.as_bytes()).is_ok() && stdin.flush().is_ok()
+                }
+                None => false,
+            }
+        };
+
+        if !sent {
+            self.log_error("Could not send input: the program is not reading input.");
+        } else if running_bar::ECHO_INPUT {
+            // There is no real terminal to echo what we typed, so we do it ourselves.
+            // It lands on the unfinished line (e.g. "name: ") like in a normal terminal.
+            self.push_output_chunk(&format!("{}\n", line));
+        }
     }
 
     fn push_output_chunk(&mut self, chunk: &str) {
@@ -649,7 +716,7 @@ impl CozyMdtApp {
         let program = program.to_string();
         let cwd = self.current_dir.clone();
         let child_slot = Arc::clone(&self.running_child);
-
+        let stdin_slot = Arc::clone(&self.running_stdin);
         thread::spawn(move || {
             let mut cmd = Command::new(&program);
 
@@ -662,6 +729,7 @@ impl CozyMdtApp {
             }
 
             cmd.current_dir(&cwd)
+                .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
                 .creation_flags(CREATE_NO_WINDOW);
@@ -670,6 +738,9 @@ impl CozyMdtApp {
                 Ok(mut child) => {
                     let stdout = child.stdout.take();
                     let stderr = child.stderr.take();
+
+                    // Keep the input pipe so the UI can write to it while the command runs
+                    *stdin_slot.lock().unwrap() = child.stdin.take();
 
                     *child_slot.lock().unwrap() = Some(child);
 
@@ -685,6 +756,9 @@ impl CozyMdtApp {
                     for r in readers {
                         let _ = r.join();
                     }
+
+                    // The command is over: drop the pipe (this closes it)
+                    *stdin_slot.lock().unwrap() = None;
 
                     if let Some(mut child) = child_slot.lock().unwrap().take() {
                         let _ = child.wait();
@@ -789,6 +863,80 @@ fn draw_history_line(ui: &mut egui::Ui, line: &HistoryLine, palette: &theme::Pal
                 }
             });
         }
+    }
+}
+
+// Builds the bar text for a given time (in seconds).
+// The block moves to the right, then back to the left, and so on.
+fn running_bar_text(time: f64) -> String {
+    use running_bar::*;
+
+    // How many positions the block can take (0 = touching the left side)
+    let steps = BAR_WIDTH.saturating_sub(BLOCK_WIDTH).max(1);
+    // A full trip is "right and then back left"
+    let cycle = steps * 2;
+    let t = (time * SPEED) as usize % cycle;
+    let pos = if t <= steps { t } else { cycle - t };
+
+    let block = BLOCK_WIDTH.min(BAR_WIDTH);
+    let after = BAR_WIDTH.saturating_sub(block + pos);
+
+    let before: String = std::iter::repeat(EMPTY).take(pos).collect();
+    let moving: String = std::iter::repeat(FILLED).take(block).collect();
+    let rest: String = std::iter::repeat(EMPTY).take(after).collect();
+
+    format!(
+        "{}{}{}{}{}",
+        LEFT_BRACKET, before, moving, rest, RIGHT_BRACKET
+    )
+}
+
+// Draws the bar (and the hint) on one line. Colors are chosen here.
+fn draw_running_bar(ui: &mut egui::Ui, palette: &theme::Palette) {
+    if !running_bar::SHOW_BAR {
+        return;
+    }
+
+    let time = ui.input(|i| i.time);
+
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 0.0;
+        ui.colored_label(palette.lavender, running_bar_text(time)); // bar color
+        if running_bar::SHOW_HINT {
+            ui.add_space(running_bar::HINT_GAP);
+            ui.colored_label(palette.subtext, running_bar::HINT); // hint color
+        }
+    });
+
+    // Keeps the animation going even if update() stops repainting every frame
+    ui.ctx().request_repaint();
+}
+
+// The input line shown under the bar. Enter sends the text to the program.
+fn draw_running_input(app: &mut CozyMdtApp, ui: &mut egui::Ui, palette: &theme::Palette) {
+    if !running_bar::SHOW_INPUT {
+        return;
+    }
+
+    let hint = egui::RichText::new(running_bar::INPUT_HINT).color(palette.subtext);
+
+    let response = ui.add(
+        egui::TextEdit::singleline(&mut app.running_input)
+            .frame(false)
+            .desired_width(f32::INFINITY)
+            .text_color(palette.text)
+            .hint_text(hint),
+    );
+
+    // Enter: send the line to the program (check this BEFORE asking for the focus back)
+    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        let line = std::mem::take(&mut app.running_input);
+        app.send_input(&line);
+    }
+
+    // While a command runs this is the only field, so it always keeps the focus
+    if !response.has_focus() {
+        response.request_focus();
     }
 }
 
@@ -941,6 +1089,14 @@ fn draw_terminal_body(app: &mut CozyMdtApp, ui: &mut egui::Ui) {
                 ui.colored_label(palette.text, &app.live_line);
             }
 
+            // While a command is running, show the bar instead of the prompt
+            // While a command is running, show the bar and the input line instead of the prompt
+            if app.is_running {
+                draw_running_bar(ui, &palette);
+                draw_running_input(app, ui, &palette);
+                return;
+            }
+
             let prompt = app.prompt();
             let font_id = egui::TextStyle::Monospace.resolve(ui.style());
             // Measure the prompt so the first row of the input leaves exactly that much room
@@ -1067,6 +1223,9 @@ impl eframe::App for CozyMdtApp {
             self.output_rx = None;
             self.is_running = false;
             *self.running_child.lock().unwrap() = None;
+            *self.running_stdin.lock().unwrap() = None;
+            self.running_input.clear();
+            self.focus_input = true; // so the normal prompt gets the focus back
         }
         // This has tortured me for hours, but I finally figured out why CTRL+C wasn't working in CozyMDT:
         // CTRL+C in egui/winit never arrives as "key C pressed with ctrl
@@ -1079,6 +1238,11 @@ impl eframe::App for CozyMdtApp {
             if self.is_running {
                 if let Some(child) = self.running_child.lock().unwrap().as_ref() {
                     kill_process_tree(child.id());
+                }
+
+                if !self.live_line.is_empty() {
+                    let line = std::mem::take(&mut self.live_line);
+                    self.log(line);
                 }
 
                 self.log("User interruption: CTRL+C");
@@ -1142,6 +1306,17 @@ fn main() -> eframe::Result<()> {
     let (custom_font, font_warnings) = load_custom_font(&settings);
     warnings.extend(font_warnings);
 
+    let default_shell = match Shell::from_name(&settings.default_shell) {
+        Some(shell) => shell,
+        None => {
+            warnings.push(format!(
+                "Unknown default_shell '{}', using cozyt",
+                settings.default_shell
+            ));
+            Shell::CozyT
+        }
+    };
+
     // Windows' own decorations are only enabled for TitleBarMode::Windows.
     let decorations = title_bar == TitleBarMode::Windows;
 
@@ -1173,6 +1348,7 @@ fn main() -> eframe::Result<()> {
                 warnings,
                 title_bar,
                 corner_radius,
+                default_shell,
             )))
         }),
     )
