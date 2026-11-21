@@ -14,6 +14,10 @@
 </p>
 
 
+# NOTICE
+
+I'm no longer working on this project, but you can still use this. It's filled with bugs though and i don't reccomend it.
+
 # Installation
 
 ## Step 1
